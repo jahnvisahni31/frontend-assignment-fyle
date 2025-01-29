@@ -24,8 +24,8 @@ A modern Angular application for tracking workout activities across users. Built
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/your-username/health-challenge-tracker.git
-cd health-challenge-tracker
+git clone https://github.com/jahnvisahni31/frontend-assignment-fyle.git
+cd frontend-assignment-fyle
 ```
 
 2. Install dependencies:
