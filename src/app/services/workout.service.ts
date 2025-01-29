@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, of } from 'rxjs';
 import { User, Workout } from '../models/workout.model';
 
 @Injectable({
@@ -15,14 +15,19 @@ export class WorkoutService {
   }
 
   private initializeData(): void {
-    const storedData = localStorage.getItem(this.STORAGE_KEY);
-    if (storedData) {
-      this.users = JSON.parse(storedData);
-    } else {
+    try {
+      const storedData = localStorage.getItem(this.STORAGE_KEY);
+      if (storedData) {
+        this.users = JSON.parse(storedData);
+      } else {
+        this.users = this.getInitialData();
+      }
+    } catch (error) {
+      console.error('Error accessing localStorage:', error);
       this.users = this.getInitialData();
+    } finally {
       this.saveToLocalStorage();
     }
-    this.usersSubject.next(this.users);
   }
 
   private getInitialData(): User[] {
@@ -55,29 +60,55 @@ export class WorkoutService {
   }
 
   private saveToLocalStorage(): void {
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.users));
-    this.usersSubject.next(this.users);
+    try {
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.users));
+      this.usersSubject.next(this.users);
+    } catch (error) {
+      console.error('Error saving to localStorage:', error);
+      // Continue providing data in memory even if storage fails
+      this.usersSubject.next(this.users);
+    }
   }
 
   getUsers(): Observable<User[]> {
     return this.usersSubject.asObservable();
   }
 
-  addWorkout(name: string, workoutType: string, minutes: number): void {
-    const existingUser = this.users.find(user => user.name === name);
-    
-    if (existingUser) {
-      existingUser.workouts.push({ type: workoutType, minutes });
-    } else {
-      const newUser: User = {
-        id: this.users.length + 1,
-        name,
-        workouts: [{ type: workoutType, minutes }]
-      };
-      this.users.push(newUser);
+  addWorkout(name: string, workoutType: string, minutes: number): boolean {
+    // Validate inputs
+    if (!name?.trim() || !workoutType?.trim() || !minutes || minutes <= 0) {
+      return false;
     }
-    
-    this.saveToLocalStorage();
+
+    // Sanitize inputs
+    const sanitizedName = name.trim();
+    const sanitizedType = workoutType.trim();
+
+    try {
+      const existingUser = this.users.find(user => 
+        user.name.toLowerCase() === sanitizedName.toLowerCase()
+      );
+      
+      if (existingUser) {
+        existingUser.workouts.push({ 
+          type: sanitizedType, 
+          minutes: Math.floor(minutes) // Ensure whole numbers
+        });
+      } else {
+        const newUser: User = {
+          id: this.generateUniqueId(),
+          name: sanitizedName,
+          workouts: [{ type: sanitizedType, minutes: Math.floor(minutes) }]
+        };
+        this.users.push(newUser);
+      }
+      
+      this.saveToLocalStorage();
+      return true;
+    } catch (error) {
+      console.error('Error adding workout:', error);
+      return false;
+    }
   }
 
   getWorkoutTypes(): string[] {
@@ -87,6 +118,10 @@ export class WorkoutService {
         types.add(workout.type);
       });
     });
-    return Array.from(types);
+    return Array.from(types).sort();
+  }
+
+  private generateUniqueId(): number {
+    return Math.max(0, ...this.users.map(u => u.id)) + 1;
   }
 }

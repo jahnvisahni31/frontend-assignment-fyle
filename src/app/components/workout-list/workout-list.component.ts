@@ -40,20 +40,34 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-200">
-            <ng-container *ngFor="let user of filteredUsers | slice:startIndex:endIndex">
-              <tr *ngFor="let workout of user.workouts">
-                <td class="px-6 py-4 whitespace-nowrap">{{ user.name }}</td>
-                <td class="px-6 py-4 whitespace-nowrap">{{ workout.type }}</td>
-                <td class="px-6 py-4 whitespace-nowrap">{{ workout.minutes }}</td>
-              </tr>
+            <ng-container *ngIf="filteredUsers.length > 0; else noData">
+              <ng-container *ngFor="let user of paginatedUsers">
+                <tr *ngFor="let workout of user.workouts">
+                  <td class="px-6 py-4 whitespace-nowrap">{{ user.name }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap">{{ workout.type }}</td>
+                  <td class="px-6 py-4 whitespace-nowrap">{{ workout.minutes }}</td>
+                </tr>
+              </ng-container>
             </ng-container>
+            <ng-template #noData>
+              <tr>
+                <td colspan="3" class="px-6 py-4 text-center text-gray-500">
+                  No workouts found matching your criteria
+                </td>
+              </tr>
+            </ng-template>
           </tbody>
         </table>
       </div>
 
       <div class="mt-4 flex justify-between items-center">
         <div>
-          Showing {{ startIndex + 1 }} to {{ Math.min(endIndex, filteredUsers.length) }} of {{ filteredUsers.length }} entries
+          <span *ngIf="filteredUsers.length > 0">
+            Showing {{ startIndex + 1 }} to {{ Math.min(endIndex, filteredUsers.length) }} of {{ filteredUsers.length }} entries
+          </span>
+          <span *ngIf="filteredUsers.length === 0">
+            No entries to display
+          </span>
         </div>
         <div class="flex gap-2">
           <button
@@ -118,6 +132,10 @@ export class WorkoutListComponent implements OnInit {
     return Math.ceil(this.filteredUsers.length / this.pageSize);
   }
 
+  get paginatedUsers(): User[] {
+    return this.filteredUsers.slice(this.startIndex, this.endIndex);
+  }
+
   previousPage(): void {
     if (this.currentPage > 1) {
       this.currentPage--;
@@ -133,7 +151,7 @@ export class WorkoutListComponent implements OnInit {
   private applyFilters(): void {
     let filtered = [...this.users];
     
-    const searchTerm = this.searchControl.value?.toLowerCase();
+    const searchTerm = this.searchControl.value?.toLowerCase().trim();
     if (searchTerm) {
       filtered = filtered.filter(user => 
         user.name.toLowerCase().includes(searchTerm)
@@ -148,6 +166,6 @@ export class WorkoutListComponent implements OnInit {
     }
 
     this.filteredUsers = filtered;
-    this.currentPage = 1;
+    this.currentPage = 1; // Reset to first page when filters change
   }
 }
